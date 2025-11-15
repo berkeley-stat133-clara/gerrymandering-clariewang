@@ -5,24 +5,45 @@ format: typst
 
 ### Question 1
 
-Put your question here.
+How many districts featured two candidates from the same party?
 
 ### Answer 1
-
-Put your answer here.
+There are 4 districts featured two candidates from the same party.
+```{r}
+question1 <- read_excel("data/g24-results-by-district.xlsx")
+colnames(district_voting) <- c('col1','col2','col3')
+district_voting <- district_voting |>
+    filter((col2 == "DEM" & col3 == "DEM") | (col2 == "REP" & col3 == "REP"))|>
+    summarize(total = n())
+question1
+```
 
 ### Question 2
 
-Put your question here.
+Which county had the closest race? 
 
 ### Answer 2
-
-Put your answer here.
+County 19 has the closest race of margin 1306234.
+```{r}
+question2 <- sr_precinct |> 
+    group_by(COUNTY)|>
+    mutate(across(c(CNGDEM01, CNGDEM02, CNGIND01, CNGREP01, CNGREP02), as.numeric))|>
+    summarize(margin = abs(sum(CNGDEM01+CNGDEM02)-sum(CNGREP01+CNGREP02)))|>
+    arrange(desc(margin))|>
+    select(COUNTY, margin)|>
+    slice(1)
+question2
+```
 
 ### Question 3
 
-Put your question here.
+What is the range of total sizes of the presinct?
 
 ### Answer 3
-
-Put your answer here.
+From 0 to 6632
+```{r}
+question3 <- sr_precinct|>
+    mutate(size = (CNGDEM01 + CNGDEM02 + CNGIND01 + CNGREP01 + CNGREP02))|>
+    arrange(desc(size))
+question3
+```
