@@ -3,3 +3,19 @@ title: Data Cleaning
 format: typst
 ---
 
+```{r}
+install.packages("readxl")
+library(readxl)
+library(tidyverse)
+```
+
+```{r}
+general_voting <- read.csv("data/g24_sov_by_g24_svprec.csv")
+district_voting <- read_excel("data/g24-results-by-district.xlsx")
+general_voting
+#c_dist 
+```
+
+```{r}
+
+```
