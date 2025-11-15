@@ -4,8 +4,72 @@ format: typst
 ---
 
 ### 2024 Election Results and the 2024 District Map
-
-
+```{r}
+election_2024 <- sr_precinct |>
+    group_by(CDDIST)|>
+    summarize(dem_votes = sum(CNGDEM01+CNGDEM02),rep_votes = sum(CNGREP01+CNGREP02))|>
+    slice(-1)
+election_2024 
+```
+```{r}
+mean_median_score <-  election_2024 |>
+    mutate(prop_rep = dem_votes / (dem_votes + rep_votes))|>
+    summarize(mean_p = mean(prop_rep),
+              med_p = median(prop_rep)) |>
+    mutate(score = mean_p - med_p)
+mean_median_score
+```
+```{r}
+n_wasted <- function(by, against) {
+    w_threshold <- floor((by + against) / 2) + 1
+    n_wasted <- ifelse(by > against, by - w_threshold, by)
+    n_wasted
+}
+# calculate wasted votes and efficiency gap
+efficiency_gap <- election_2024 |>
+  mutate(
+    d_wasted = n_wasted(dem_votes, rep_votes),
+    r_wasted = n_wasted(rep_votes, dem_votes)
+  ) |>
+  summarize(
+    total_d_wasted = sum(d_wasted),
+    total_r_wasted = sum(r_wasted),
+    total_votes = sum(dem_votes + rep_votes)) |>
+    mutate(EG = (total_d_wasted - total_r_wasted) / total_votes)
+efficiency_gap
+```
 
 ### 2024 Election Results and the proposed 2025 District Map
+```{r}
+election_2024_new <- interp |>
+    group_by(CDDIST)|>
+    summarize(dem_votes = sum(CNGDEM01+CNGDEM02),rep_votes = sum(CNGREP01+CNGREP02))|>
+    slice(-1)
+election_2024_new
+```
 
+```{r}
+mean_median_score_new <-  election_2024_new |>
+    mutate(prop_rep = dem_votes / (dem_votes + rep_votes))|>
+    summarize(mean_p = mean(prop_rep),
+              med_p = median(prop_rep)) |>
+    mutate(score = mean_p - med_p)|>
+    select(mean_p, med_p, score)
+mean_median_score_new
+```
+
+```{r}
+# calculate wasted votes and efficiency gap
+efficiency_gap_new <- election_2024_new |>
+  mutate(
+    d_wasted = n_wasted(dem_votes, rep_votes),
+    r_wasted = n_wasted(rep_votes, dem_votes)
+  ) |>
+  summarize(
+    total_d_wasted = sum(d_wasted),
+    total_r_wasted = sum(r_wasted),
+    total_votes = sum(dem_votes + rep_votes)) |>
+    mutate(EG = (total_d_wasted - total_r_wasted) / total_votes)|>
+    select(total_d_wasted, total_r_wasted, total_votes, EG)
+efficiency_gap_new
+efficiency_gap
