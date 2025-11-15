@@ -1,5 +1,94 @@
 ---
 title: Dashboard
-format: dashboard
----
+format: 
+    dashboard:
+        orientation: columns
+--- 
+```{r}
+#| label: setup
+#| message: false
+library(sf)
+library(tidyverse)
 
+#| label: "Get precinct data"
+#| message: false
+sr_precinct <- read_csv("data/state_g24_sov_data_by_g24_srprec.csv")
+sr_precinct <- sr_precinct |>
+    select(COUNTY, SRPREC_KEY, CDDIST, CNGDEM01, CNGDEM02, CNGIND01, CNGREP01, CNGREP02)|>
+    filter(if_all(c(CNGDEM01, CNGDEM02, CNGIND01, CNGREP01, CNGREP02), ~ !str_detect(.x, "\\*\\*\\*")))|>
+    mutate(across(all_of(c("CNGDEM01", "CNGDEM02", "CNGIND01", "CNGREP01", "CNGREP02")), as.numeric))
+
+#| label: "Get precinct geom data"
+#| message: false
+sr_shp <- st_read("data/shapefiles/srprec_state_g24_v01_shp.shp")
+sr_shp <- sr_shp |>
+    st_transform(3310) |>
+    st_set_precision(1) |>
+    st_make_valid() |>
+    st_collection_extract("POLYGON")
+
+#| label: "Get precinct new geom data"
+#| message: false
+cd_map <- st_read("data/AB604/AB604.shp")
+cd_map <- cd_map |>
+    st_transform(3310) |>
+    st_make_valid()|>
+    st_collection_extract("POLYGON")
+
+sr_geo <- sr_shp |>
+    left_join(sr_precinct, by = "SRPREC_KEY")
+
+sr_votes_numeric <- sr_geo |> 
+  select(CDDIST,CNGDEM01, CNGDEM02, CNGIND01, CNGREP01, CNGREP02)|>
+  filter(if_any(c(CNGDEM01, CNGDEM02, CNGREP01, CNGREP02), ~ !is.na(.x)))
+
+interp <- st_interpolate_aw(sr_votes_numeric, cd_map, extensive = TRUE)
+
+cd_2024 <- sr_geo |>
+  mutate(
+    dem_votes = CNGDEM01 + CNGDEM02,
+    rep_votes = CNGREP01 + CNGREP02,
+    winner_party = case_when(
+      dem_votes > rep_votes ~ "D",
+      rep_votes > dem_votes ~ "R",
+      TRUE ~ "TIE"
+    )
+  )
+
+cd_new <- interp |>
+  mutate(
+    dem_votes = CNGDEM01 + CNGDEM02,
+    rep_votes = CNGREP01 + CNGREP02,
+    winner_party = case_when(
+      dem_votes > rep_votes ~ "D",
+      rep_votes > dem_votes ~ "R",
+      TRUE ~ "TIE"
+    )
+  )
+```
+
+::: {.column width="40%"}
+### 2024 Results (Old Map)
+```{r}
+#| label: "2024 Results (Old Map)"
+ggplot(cd_2024) +
+  geom_sf(aes(fill = winner_party), color = "white", size = 0.1) +
+  scale_fill_manual(values = c("D" = "#3182bd", "R" = "#de2d26", "TIE" = "gray")) +
+  labs(title = "2024 Congressional Election Results",
+       fill = "Winner") +
+  theme_minimal()
+```
+:::
+
+::: {.column width="40%"}
+### Hypothetical Re-run (New Map)
+```{r}
+#| label: "Hypothetical Re-run (New Map)"
+ggplot(cd_new) +
+  geom_sf(aes(fill = winner_party), color = "white", size = 0.1) +
+  scale_fill_manual(values = c("D" = "#3182bd", "R" = "#de2d26", "TIE" = "gray")) +
+  labs(title = "Hypothetical Re-run of 2024 Election (New District Map)",
+       fill = "Winner") +
+  theme_minimal()
+```
+:::
